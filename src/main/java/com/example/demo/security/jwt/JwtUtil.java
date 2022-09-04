@@ -1,61 +1,83 @@
 package com.example.demo.security.jwt;
 
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.function.Function;
-
-import org.springframework.beans.factory.annotation.Autowired;
+import com.nimbusds.jose.*;
+import com.nimbusds.jose.crypto.MACSigner;
+import com.nimbusds.jose.crypto.MACVerifier;
+import com.nimbusds.jose.jwk.source.ImmutableSecret;
+import com.nimbusds.jose.proc.BadJOSEException;
+import com.nimbusds.jose.proc.JWSKeySelector;
+import com.nimbusds.jose.proc.JWSVerificationKeySelector;
+import com.nimbusds.jose.proc.SecurityContext;
+import com.nimbusds.jwt.JWTClaimsSet;
+import com.nimbusds.jwt.SignedJWT;
+import com.nimbusds.jwt.proc.ConfigurableJWTProcessor;
+import com.nimbusds.jwt.proc.DefaultJWTProcessor;
+import lombok.extern.log4j.Log4j2;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.stereotype.Service;
+import org.springframework.stereotype.Component;
 
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
+import java.text.ParseException;
+import java.time.Instant;
+import java.util.Date;
+import java.util.List;
+import java.util.stream.Collectors;
 
-@Service
+@Component
+@EnableConfigurationProperties(JwtConfig.class)
+@Log4j2
 public class JwtUtil {
+  private final JwtConfig jwtConfig;
 
-    @Autowired
-    private JwtConfig config;
+  public JwtUtil(JwtConfig jwtConfig) {
+    this.jwtConfig = jwtConfig;
+  }
 
-    public String extractEmail(String token) {
-        return extractClaim(token, Claims::getSubject);
+  public UsernamePasswordAuthenticationToken parseToken(String token) throws JOSEException, BadJOSEException, ParseException {
+    log.info("Start to parse token");
+    byte[] secretKey = jwtConfig.getSecretKey().getBytes();
+    SignedJWT signedJWT = SignedJWT.parse(token);
+    signedJWT.verify(new MACVerifier(secretKey));
+    ConfigurableJWTProcessor<SecurityContext> jwtProcessor = new DefaultJWTProcessor<>();
+
+    JWSKeySelector<SecurityContext> keySelector = new JWSVerificationKeySelector<>(JWSAlgorithm.HS256, new ImmutableSecret<>(secretKey));
+    jwtProcessor.setJWSKeySelector(keySelector);
+    jwtProcessor.process(signedJWT, null);
+    JWTClaimsSet claims = signedJWT.getJWTClaimsSet();
+    String username = claims.getSubject();
+    List<String> roles = (List<String>) claims.getClaim("roles");
+    List<SimpleGrantedAuthority> authorities = roles.stream()
+      .map(SimpleGrantedAuthority::new)
+      .collect(Collectors.toList());
+    return new UsernamePasswordAuthenticationToken(username, null, authorities);
+  }
+
+  public String genrateToken(UserDetails details) {
+    try {
+      log.info("Start to generate token");
+      JWTClaimsSet claims = new JWTClaimsSet.Builder()
+        .subject(details.getUsername())
+        //.issuer(issuer)
+        .claim("roles", details.getAuthorities().stream().map(GrantedAuthority::getAuthority).collect(Collectors.toList()))
+        .expirationTime(Date.from(Instant.now().plusSeconds(jwtConfig.getTokenExpirationAfterHours() * 3_600L)))
+        .issueTime(new Date())
+        .build();
+
+      Payload payload = new Payload(claims.toJSONObject());
+
+      JWSObject jwsObject = new JWSObject(new JWSHeader(JWSAlgorithm.HS256),
+        payload);
+
+      jwsObject.sign(new MACSigner(jwtConfig.getSecretKey()));
+      log.info("sign token by signer");
+      return jwsObject.serialize();
+    } catch (JOSEException e) {
+      log.error(String.format("Error to create JWT %s", e.getMessage()));
+      throw new RuntimeException(String.format("Error to create JWT %s", e.getMessage()));
     }
-
-    public Date extractExpiration(String token) {
-        return extractClaim(token, Claims::getExpiration);
-    }
-
-    public <T> T extractClaim(String token, Function<Claims, T> claimResolve) {
-        final Claims claims = extractAllClaims(token);
-        return claimResolve.apply(claims);
-    }
-
-    private Claims extractAllClaims(String token) {
-        return Jwts.parser().setSigningKey(config.getSecretKey()).parseClaimsJws(token).getBody();
-    }
-
-    private Boolean isTokenExpired(String token) {
-        return extractExpiration(token).before(new Date());
-    }
-
-    public String genrateToken(UserDetails details) {
-        Map<String, Object> claims = new HashMap<>();
-        return createToken(claims, details);
-    }
-
-    private String createToken(Map<String, Object> claims, UserDetails details) {
-        return Jwts.builder().setClaims(claims).setSubject(details.getUsername())
-                .setIssuedAt(new Date(System.currentTimeMillis()))
-                .setExpiration(
-                        new Date(System.currentTimeMillis() + config.getTokenExpirationAfterDays() * 60 * 60 * 10))
-                .signWith(SignatureAlgorithm.HS256, config.getSecretKey()).compact();
-
-    }
-
-    public Boolean validateToken(String token, UserDetails userDetails) {
-        final String email = extractEmail(token);
-        return (email.equals(userDetails.getUsername()) && !isTokenExpired(token));
-    }
+  }
 }
+

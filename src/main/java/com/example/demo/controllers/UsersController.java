@@ -1,57 +1,30 @@
 package com.example.demo.controllers;
 
+import com.example.demo.enteties.Utilisateur;
 import com.example.demo.repo.UtilisateurRepository;
-import com.example.demo.security.jwt.JwtUtil;
-import com.example.demo.security.services.ApplicationUserService;
-import com.example.demo.security.services.AuthResponse;
-
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.AllArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.BadCredentialsException;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import lombok.Data;
-
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
+import java.util.List;
 
 @RestController
+@AllArgsConstructor
 public class UsersController {
-    @Autowired
-    private UtilisateurRepository repository;
-    @Autowired
-    private AuthenticationManager authenticationManager;
-    @Autowired
-    private ApplicationUserService applicationUserService;
-    @Autowired
-    private JwtUtil jwtUtil;
+  private UtilisateurRepository repository;
 
-    @GetMapping(value = "/")
-    public String getMethodName() {
-        return "Hello World";
-    }
+  @GetMapping(value = "/")
+  public String getMethodName() {
+    return "Hello World";
+  }
 
-    @PostMapping(value = "/login")
-    public ResponseEntity<?> login(@RequestBody LoginForm login) throws Exception {
-        try {
-            authenticationManager
-                    .authenticate(new UsernamePasswordAuthenticationToken(login.getEmail(), login.getPassword()));
-        } catch (BadCredentialsException e) {
-            throw new BadCredentialsException("Incorrect email or password ", e);
-        }
-        final UserDetails userDetails = applicationUserService.loadUserByUsername(login.getEmail());
-        final String jwt = jwtUtil.genrateToken(userDetails);
-        return ResponseEntity.ok(new AuthResponse(jwt));
-    }
+  @PreAuthorize("hasAuthority('ADMIN')")
+  @GetMapping("/api/users")
+  public ResponseEntity<List<Utilisateur>> getAllUsers() {
+    List<Utilisateur> utilisateurs = repository.findAll();
+    return ResponseEntity.ok(utilisateurs);
+  }
 
-}
-
-@Data
-class LoginForm {
-    private String email;
-    private String password;
 }

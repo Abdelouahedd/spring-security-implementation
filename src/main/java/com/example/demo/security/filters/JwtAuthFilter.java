@@ -1,60 +1,62 @@
 package com.example.demo.security.filters;
 
-import java.io.IOException;
+import com.example.demo.security.jwt.JwtConfig;
+import com.example.demo.security.jwt.JwtUtil;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nimbusds.jose.JOSEException;
+import com.nimbusds.jose.proc.BadJOSEException;
+import lombok.AllArgsConstructor;
+import lombok.extern.log4j.Log4j2;
+import org.springframework.http.HttpHeaders;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.stereotype.Service;
+import org.springframework.web.filter.OncePerRequestFilter;
 
 import javax.servlet.FilterChain;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.text.ParseException;
+import java.util.HashMap;
+import java.util.Map;
 
-import com.example.demo.security.jwt.JwtConfig;
-import com.example.demo.security.jwt.JwtUtil;
-import com.example.demo.security.services.ApplicationUserService;
-
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.stereotype.Service;
-import org.springframework.web.filter.OncePerRequestFilter;
+import static org.springframework.http.HttpStatus.FORBIDDEN;
+import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
 
 @Service
+@Log4j2
+@AllArgsConstructor
 public class JwtAuthFilter extends OncePerRequestFilter {
 
-    @Autowired
-    private ApplicationUserService userDetails;
-    @Autowired
-    private JwtUtil jwtUtil;
-    @Autowired
-    private JwtConfig jwtConfig;
+  private final JwtUtil jwtUtil;
+  private final JwtConfig jwtConfig;
 
-    @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
-            throws ServletException, IOException {
+  @Override
+  protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
+    throws ServletException, IOException {
 
-        final String authorizationHeader = request.getHeader(jwtConfig.getAuthorizationHeader());
-        if (authorizationHeader != null && authorizationHeader.startsWith(jwtConfig.getTokenPrefix())) {
-            try {
-                String jwt = authorizationHeader.substring(7);
-                String email = jwtUtil.extractEmail(jwt);
-                if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                    UserDetails userDetails = this.userDetails.loadUserByUsername(email);
-                    if (jwtUtil.validateToken(jwt, userDetails)) {
-                        UsernamePasswordAuthenticationToken usernamePasswordAuthenticationToken = new UsernamePasswordAuthenticationToken(
-                                userDetails, null, userDetails.getAuthorities());
-                        SecurityContextHolder.getContext().setAuthentication(usernamePasswordAuthenticationToken);
-                    }
-                }
-                filterChain.doFilter(request, response);
-            } catch (Exception e) {
-                response.setHeader("error-msg", e.getMessage());
-                response.sendError(HttpServletResponse.SC_FORBIDDEN);
-            }
-
-        } else {
-            filterChain.doFilter(request, response);
-        }
-
+    String token = null;
+    final String authorizationHeader = request.getHeader(HttpHeaders.AUTHORIZATION);
+    if (authorizationHeader != null && authorizationHeader.startsWith(jwtConfig.getTokenPrefix())) {
+      try {
+        token = authorizationHeader.substring("Bearer ".length());
+        UsernamePasswordAuthenticationToken authenticationToken = jwtUtil.parseToken(token);
+        SecurityContextHolder.getContext().setAuthentication(authenticationToken);
+        filterChain.doFilter(request, response);
+      } catch (JOSEException | BadJOSEException | ParseException e) {
+        log.error(String.format("Error auth token: %s", token), e);
+        response.setStatus(FORBIDDEN.value());
+        Map<String, String> error = new HashMap<>();
+        error.put("errorMessage", e.getMessage());
+        response.setContentType(APPLICATION_JSON_VALUE);
+        new ObjectMapper().writeValue(response.getOutputStream(), error);
+      }
+    } else {
+      filterChain.doFilter(request, response);
     }
+
+  }
 
 }
