@@ -4,7 +4,6 @@ import com.example.demo.security.jwt.JwtUtil;
 import com.example.demo.security.services.ApplicationUserService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.AllArgsConstructor;
-import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
@@ -36,7 +35,6 @@ public class CustomAuthenticationFilter extends UsernamePasswordAuthenticationFi
   private final AuthenticationManager authenticationManager;
   private final JwtUtil jwtUtil;
   private final ApplicationUserService applicationUserService;
-
 
 
   @SneakyThrows
@@ -72,10 +70,7 @@ public class CustomAuthenticationFilter extends UsernamePasswordAuthenticationFi
     User user = (User) authentication.getPrincipal();
     final UserDetails userDetails = applicationUserService.loadUserByUsername(user.getUsername());
     String accessToken = jwtUtil.genrateToken(userDetails);
-
-    //String refreshToken = JwtUtil.createRefreshToken(user.getUsername());
     response.addHeader("access_token", accessToken);
-    //response.addHeader("refresh_token", refreshToken);
   }
 
   @Override
