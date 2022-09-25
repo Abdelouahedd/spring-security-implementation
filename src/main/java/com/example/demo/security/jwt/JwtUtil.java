@@ -51,7 +51,7 @@ public class JwtUtil {
     List<String> roles = (List<String>) claims.getClaim("roles");
     List<SimpleGrantedAuthority> authorities = roles.stream()
       .map(SimpleGrantedAuthority::new)
-      .collect(Collectors.toList());
+      .toList();
     return new UsernamePasswordAuthenticationToken(username, null, authorities);
   }
 
@@ -61,7 +61,7 @@ public class JwtUtil {
       JWTClaimsSet claims = new JWTClaimsSet.Builder()
         .subject(details.getUsername())
         //.issuer(issuer)
-        .claim("roles", details.getAuthorities().stream().map(GrantedAuthority::getAuthority).collect(Collectors.toList()))
+        .claim("roles", details.getAuthorities().stream().map(GrantedAuthority::getAuthority).toList())
         .expirationTime(Date.from(Instant.now().plusSeconds(jwtConfig.getTokenExpirationAfterHours() * 3_600L)))
         .issueTime(new Date())
         .build();

@@ -1,9 +1,9 @@
 package com.example.demo;
 
-import com.example.demo.enteties.Admin;
-import com.example.demo.enteties.Prof;
-import com.example.demo.enteties.Utilisateur;
-import com.example.demo.repo.UtilisateurRepository;
+import com.example.demo.enteties.Role;
+import com.example.demo.enteties.User;
+import com.example.demo.repo.RoleRepository;
+import com.example.demo.repo.UserRepository;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -11,29 +11,40 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.Arrays;
+import java.util.Set;
 
 @SpringBootApplication
 public class DemoApplication {
-	public static void main(String[] args) {
-		SpringApplication.run(DemoApplication.class, args);
-	}
+  public static void main(String[] args) {
+    SpringApplication.run(DemoApplication.class, args);
+  }
+
   @Bean
-  CommandLineRunner run(UtilisateurRepository utilisateurRepository, PasswordEncoder passwordEncoder) {
+  CommandLineRunner run(UserRepository userRepository, RoleRepository roleRepository, PasswordEncoder passwordEncoder) {
     return args -> {
-      Utilisateur admin = new Admin();
+
+      Role userRole = new Role("User");
+      Role adminRole = new Role("Admin");
+      Role defaultRole = new Role("Default");
+      roleRepository.saveAll(Arrays.asList(userRole, adminRole, defaultRole));
+
+      User admin = new User();
+      admin.setFirstName("Admin");
+      admin.setLastName("Administrator");
+      admin.setUserName("Admin-app");
       admin.setEmail("Admin@hotmail.com");
-      admin.setRole(Roles.ADMIN);
-      admin.setNom("Admin");
-      admin.setPrenom("Administrator");
       admin.setPassword(passwordEncoder.encode("admin1234"));
-      Prof prof = new Prof();
-      prof.setEmail("prof@hotmail.com");
-      prof.setRole(Roles.PROF);
-      prof.setNom("prof");
-      prof.setPrenom("professor");
-      prof.setPassword(passwordEncoder.encode("prof1234"));
-      prof.setCin("ae1234");
-      utilisateurRepository.saveAll(Arrays.asList(admin, prof));
+      admin.setRoles(Set.of(defaultRole, adminRole, userRole));
+
+      User user = new User();
+      user.setFirstName("User");
+      user.setLastName("user");
+      user.setUserName("user-app");
+      user.setEmail("user@hotmail.com");
+      user.setPassword(passwordEncoder.encode("user1234"));
+      user.setRoles(Set.of(defaultRole, userRole));
+
+      userRepository.saveAll(Arrays.asList(admin, user));
     };
   }
 }

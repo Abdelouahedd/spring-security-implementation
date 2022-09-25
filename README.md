@@ -31,44 +31,55 @@ The project is a small implementation of securing a REST api using spring securi
 
 ## :sparkles: Features ##
 
-:heavy_check_mark: Feature 1; Configure the application with embedded Data base (H2), and create the entities with repository <br/>
+:heavy_check_mark: Feature 1; Configure the application with embedded Data base (H2), and create the entities with
+repository <br/>
 :heavy_check_mark: Feature 2; Create a controller userController <br/>
 :heavy_check_mark: Feature 3; Create filter CustomAuthenticationFilter for the authentication part <br/>
 :heavy_check_mark: Feature 4; Create filter JwtAuthFilter for the authorization part <br/>
 
 package :
-For communicate to data base I am using JPA as ORM for mapping the object in our database.
+For communicate to database I am using JPA as ORM for mapping the object in our database.
 
 - entities -><br>
-  - Utilisateur : class abstract<br>
-  - Etudiant : class that inherit from Utilisateur and has cne as a specific attribute<br>
-  - Prof : class that inherit from Utilisateur and has cin as a specific attribute<br>
-  - Admin : class that inherit from Utilisateur and has cin as a specific attribute<br>
+  - User : This class contains information about the users of the application.<br>
+  - Role : This class contains roles <br>
 
-- repo    -><br>
-  - UtilisateurRepository : interface extend from JpaRepository<br>
+
+- repo -><br>
+  - UserRepository : interface extend from JpaRepository<br>
+  - RoleRepository : interface extend from JpaRepository<br>
 
 - security -> <br>
-  - WebSecurityConfig : class contain the configuration of security for the application, in new version of Spring security we can configure without extend WebSecurityConfigurerAdapter
-  we can just create Bean of type SecurityFilterChain and add rules of permit or deny access to Http request<br>
+  - WebSecurityConfig : class contain the configuration of security for the application, in new version of Spring
+    security we can configure without extend WebSecurityConfigurerAdapter
+    we can just create Bean of type SecurityFilterChain and add rules of permit or deny access to Http request<br>
 
 - filters -> <br>
-  - JwtAuthFilter : Filter that intercept our request and validate the token and parse it for create a user information in SecurityContextHolder<br>
-  - CustomAuthenticationFilter : This filter is used in the login phase , It automatically calls UserDetailsService.loadUserByUsername, and if the user exists,
-  it creates and returns two JWT tokens: one is the access token, used to authorize the user, the other is the refresh token, used by the client to acquire
-  a new access token without having to login again. <br>
-- jwt     -><br>
+  - JwtAuthFilter : Filter that intercept our request and validate the token and parse it for create a user information
+    in SecurityContextHolder<br>
+  - CustomAuthenticationFilter : This filter is used in the login phase , It automatically calls
+    UserDetailsService.loadUserByUsername, and if the user exists,
+    it creates and returns two JWT tokens: one is the access token, used to authorize the user, the other is the refresh
+    token, used by the client to acquire
+    a new access token without having to login again. <br>
+- jwt -><br>
   - JwtConfig : class that contain the configuration of our jwt<br>
   - JwtUtil   : class that content method to verifier and extract data from the token<br>
 
 - services -> <br>
-  - ApplicationUserService : class implements UserDetailsService and override method loadUserByUsername and return authenticated User(spring object)<br>
+  - ApplicationUserService : class implements UserDetailsService and override method loadUserByUsername and return
+    authenticated User(spring object)<br>
 
 
 - controllers -><br>
   - UsersController : controller that contain 2 end points : <br>
   - get("/") is for all users can access<br>
   - get("/api/users") get all users in database and must login user has a admin role<br>
+
+- RolesController -><br>
+  - RolesController : controller that contain end points of management roles : <br>
+  - get("/api/roles") is for all users can access<br>
+  - post("/api/roles") add new role to database and must login user has an admin role<br>
 
 ## :rocket: Technologies ##
 
@@ -80,7 +91,8 @@ The following tools were used in this project:
 
 ## :white_check_mark: Requirements ##
 
-Before starting :checkered_flag:, you need to have [Git](https://git-scm.com) and [Java](https://www.oracle.com/java/technologies/javase/jdk11-archive-downloads.html) installed.
+Before starting :checkered_flag:, you need to have [Git](https://git-scm.com)
+and [Java](https://www.oracle.com/java/technologies/javase/jdk11-archive-downloads.html) and [curl](https://curl.se/) installed.
 
 ## :checkered_flag: Starting ##
 
@@ -98,16 +110,24 @@ $ ./mvnw clean compile
 $ ./mvnw spring-boot:run
 
 # The server will initialize in the <http://localhost:9000>
+## for test you can use admin account 
+curl -i -X POST \
+-d  '{"email":"Admin@hotmail.com","password":"admin1234"}' \
+http://localhost:9000/login | grep access_token
+## or user account
+curl -i -X POST \
+-d  '{"email":"user@hotmail.com","password":"user1234"}' \
+http://localhost:9000/login | grep access_token
 ```
+
 ## :memo: License ##
 
 This project is under license from MIT. For more details, see the [LICENSE](LICENSE.md) file.
 
-
-Made with :heart: by <a href="https://github.com/Abdelouahedd/spring-security-implementation" target="_blank">Abdelouahed</a>
+Made with :heart: by <a href="https://github.com/Abdelouahedd/spring-security-implementation" target="_blank">
+Abdelouahed</a>
 
 &#xa0;
-
 
 ## :contribute: Contributions ##
 

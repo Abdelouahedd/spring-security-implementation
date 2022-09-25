@@ -16,7 +16,6 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 import javax.servlet.FilterChain;
-import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
@@ -49,7 +48,7 @@ public class CustomAuthenticationFilter extends UsernamePasswordAuthenticationFi
       Map<String, String> map = objectMapper.readValue(request.getInputStream(), Map.class);
       email = map.get("email");
       password = map.get("password");
-      log.debug("Login with username: {}", email);
+      log.debug("Login with email: {}", email);
       return authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(email, password));
     } catch (AuthenticationException e) {
       log.error(String.format(BAD_CREDENTIAL_MESSAGE, email, password), e);
@@ -66,7 +65,7 @@ public class CustomAuthenticationFilter extends UsernamePasswordAuthenticationFi
 
   @Override
   protected void successfulAuthentication(HttpServletRequest request, HttpServletResponse response, FilterChain chain,
-                                          Authentication authentication) throws IOException, ServletException {
+                                          Authentication authentication) {
     User user = (User) authentication.getPrincipal();
     final UserDetails userDetails = applicationUserService.loadUserByUsername(user.getUsername());
     String accessToken = jwtUtil.genrateToken(userDetails);
@@ -74,7 +73,8 @@ public class CustomAuthenticationFilter extends UsernamePasswordAuthenticationFi
   }
 
   @Override
-  protected void unsuccessfulAuthentication(HttpServletRequest request, HttpServletResponse response, AuthenticationException failed) throws IOException, ServletException {
+  protected void unsuccessfulAuthentication(HttpServletRequest request, HttpServletResponse response, AuthenticationException failed) throws IOException {
+    log.info(failed.getMessage());
     response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
     ObjectMapper mapper = new ObjectMapper();
     Map<String, String> error = new HashMap<>();
